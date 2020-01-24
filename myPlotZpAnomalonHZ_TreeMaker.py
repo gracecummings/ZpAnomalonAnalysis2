@@ -28,6 +28,10 @@ def deltaR(vec1,vec2):
     dR = sqrt((v2phi-v1phi)**2+(v2eta-v1eta)**2)
     return dR
 
+gROOT.ProcessLine(".L lester_mt2_bisect.h")                                                                                                                    
+MT2Class=asymm_mt2_lester_bisect()                                                                                                                             
+MT2Class.disableCopyrightMessage()
+
 #Parser
 parser = argparse.ArgumentParser()
 
@@ -37,6 +41,7 @@ if __name__=='__main__':
     parser.add_argument("-s","--isSig", type=bool,help="is this a signal sample?")
     parser.add_argument("-wp","--btagWP",type=float,default=0.6,help = "doulbeB tagger working point (default M1)")
     parser.add_argument("-z","--zPtCut",type=float,default = 100,help = "pT cut on Z")
+    parser.add_argument("-mt2","--mt2",type=float,default = 200,help = "guess for mt2 mass")
     parser.add_argument("-e","--isEOS",type=bool, help = "is this file on EOS")
     args = parser.parse_args()
 
@@ -48,6 +53,7 @@ if __name__=='__main__':
     zptcut    = args.zPtCut
     isSig     = args.isSig
     isEOS     = args.isEOS
+    mt2g      = args.mt2
 
     #Make a list of input files
     #eosprefix = "root://cmseos.fnal.gov/store/user/gcumming/"
@@ -105,7 +111,7 @@ if __name__=='__main__':
         outname = outf+"_"+str(events)+"Events.root"
         output = TFile("analysis_output_ZpAnomalon/"+str(date.today())+"/"+outname,"RECREATE")
     else:
-        outname = outfdefault+"_"+str(events)+"Events_Zpt"+str(zptcut)+"btag"+str(doubleBWP)+".root"
+        outname = outfdefault+"_"+str(events)+"Events_Zpt"+str(zptcut)+"btag"+str(doubleBWP)+"mt2g"+str(mt2g)+".root"
         output  = TFile("analysis_output_ZpAnomalon/"+str(date.today())+"/"+outname,"RECREATE")
     print "Created output file"
 
@@ -365,6 +371,8 @@ if __name__=='__main__':
                                 
                             if ptmiss > 50:
                                 events_passing += 1
+                                ptmiss_px = ptmiss*cos(ptmiss_phi)
+                                ptmiss_py = ptmiss*sin(ptmiss_phi)
                                 #Calculating Generator Level Observables
                                 #dphi_ghsf = abs(ghiggs.Phi()-sfat.Phi())
                                 #if dphi_ghsf >= 3.14159:
@@ -387,7 +395,12 @@ if __name__=='__main__':
                                 dphi_sfat_dimuon = abs(sfat.Phi()-dimuon.Phi())
                                 if dphi_sfat_dimuon >= 3.14159:
                                     dphi_sfat_dimuon = 2*3.14159 - dphi_sfat_dimuon
-
+                                
+                                #Calculate Mt2
+                                mt2   = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfat.M(),sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,mt2g,mt2g,0)
+                                hmt2.Fill(mt2)
+                                mt2SD = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfdict["softdrop"],sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,mt2g,mt2g,0)
+                                hmt2SD.Fill(mt2SD)
                                 
                                 #Filling 1D histograms that cover selection based quantities 
                                 #hbtagfrac.Fill(len(flist)/fnparts)

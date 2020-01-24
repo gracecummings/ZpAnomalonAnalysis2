@@ -33,6 +33,8 @@ hztm_pt                  = TH1F("hztm_pt","pt of TreeMaker Z",75,50,800)
 hzreco_mass              = TH1F("hzreco_mass","mass of reconstructed Z",20,70,110)
 hztm_mass                = TH1F("hztm_mass","mass of TreeMaker Z",20,70,110)
 hMETClean                = TH1F("hMETClean","cleaned misssing transverse momentum",40,200,1200)
+hmt2                     = TH1F("hmt2","mt2",130,0,1300)
+hmt2SD                   = TH1F("hmt2SD","mt2 calculated with higgs SD",130,0,1300)
 
 #Overlap by region plots
 hdRgr8_unclus_pt         = TH1F("hdRgr8_unclus_pt","pT of unreclustered selec fat jet w/ dR > 0.8 btw closest muon",40,200,1200)
