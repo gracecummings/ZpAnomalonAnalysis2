@@ -156,6 +156,17 @@ if __name__=='__main__':
             hsbkg.SetMinimum(0.1)
             if b == len(bkg["binlist"])-1:
                 leg.AddEntry(hbkg,bkg["name"],"f")
+
+    #Make a multigraph
+    mg = ROOT.TMultiGraph()
+    mg.SetTitle("")
+    mg.GetXaxis().SetTitle("cut value")
+    mg.GetXaxis().SetTitleSize(0.08)
+    mg.GetXaxis().SetLabelSize(0.05)
+    mg.GetYaxis().SetTitle("S/#sqrt{B} @ "+str(sig_xsec/1000)+"pb")
+    mg.GetYaxis().SetTitleSize(0.08)
+    mg.GetYaxis().SetTitleOffset(.7)
+    mg.GetYaxis().SetLabelSize(0.05)
                 
     #Prep the pads
     tc = ROOT.TCanvas("tc",hname,600,800)
@@ -221,21 +232,20 @@ if __name__=='__main__':
         tg.SetTitle("")
         tg.SetLineWidth(2)
         tg.SetLineColor(masspoint["color"])
-        tg.GetXaxis().SetTitle("btag value")
         tg.GetXaxis().SetTitleSize(0.08)
         tg.GetXaxis().SetLabelSize(0.05)
-        tg.GetYaxis().SetTitle("S/#sqrt{B}")
         tg.GetYaxis().SetTitleSize(0.08)
         tg.GetYaxis().SetTitleOffset(.7)
         tg.GetYaxis().SetLabelSize(0.05)
-        #mg.Add(tg)
+        mg.Add(tg)
 
         #Make the second pad with the significance plot
         tc.cd()
 
         p2.Draw()
         p2.cd()
-        tg.Draw()
+        #tg.Draw()
+        mg.Draw("AL")
 
     #Draw the legent with everything added
     tc.cd()
