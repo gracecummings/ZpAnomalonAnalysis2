@@ -46,8 +46,8 @@ def orderFall17DY(histFile):
     return int(s2)
 
 def orderFall17TT(histFile):
-    s1 = histFile.split("MiniAOD")[0]
-    s2 = s1.split("_")[-1]
+    s1 = histFile.split("hists_")[1]
+    s2 = s1.split("Events")[0]
     return int(s2)
 
 if __name__=='__main__':
@@ -70,14 +70,13 @@ if __name__=='__main__':
     released_plot = args.plot
 
     #Files to stack
-    DYJetsToLL = glob.glob('histsBkg_Commitb1a1547/Fall17.DYJetsToLL_M-50_HT*_Zpt100WP0*')#Add more dynamics here
-    #TT         = glob.glob('histsBkg_Commitb1a1547/Fall17.TTT*_Zpt100WP0')#Add more dynamics here)
+    DYJetsToLL = glob.glob('histsBkg_Commitb1a1547/Fall17.DYJetsToLL_M-50_HT**')#Add more dynamics here
+    TT         = glob.glob('histsBkg_Commitb1a1547/Fall17.TTT*')#Add more dynamics here)
     #WZTo2L2Q   = glob.glob()
     #ZZTo2L2Q   = glob.glob()
-    bkgfiles   = [DYJetsToLL]#,TT]#,WZ,ZZ]
+    bkgfiles   = [DYJetsToLL,TT]#,WZ,ZZ]
     bkgnames   = ["DYJetsToLL","TT","WZTo2L2Q","ZZTo2L2Q"]
     sigfiles   = glob.glob('histsSig_Commitb1a1547_Zpt100DoubleBDisc0/ZpAnomalonHZ_UFO-*')
-    #sigfiles   = ["histsSig_Commitb1a1547_Zpt100DoubleBDisc0/ZpAnomalonHZ_UFO-Zp2000-ND300-NS1_v2_94X_mc2017_realistic_v3_RA2AnalysisTree_hists_25000Events_Zpt100.0btag0.0mt2g1.0.root"]
 
     #Prep signals
     sig_colors  = [kOrange,kOrange-3,kCyan,kCyan-6,kGreen,kGreen-6,kPink+7,kPink+4,kViolet+4,kMagenta-2,kMagenta+3]
@@ -124,6 +123,8 @@ if __name__=='__main__':
             bkgbin_dict["tfile"]   = ROOT.TFile(bkgbin)
             bkgbin_sampsize        = bkgbin_dict["tfile"].Get('hnevents').GetBinContent(1)
             bkgbin_xs              = float(bkgbin_xs_pairs[s][1].split()[0])*1000#Into Femtobarns
+            print "bkgbin ",bkgbin
+            print "xsec pair ",bkgbin_xs_pairs[s]
             bkgbin_dict["scale"]   = findScale(float(bkgbin_sampsize),bkgbin_xs,lumi)
             bkgbin_dict["color"]   = bkg_colors[b]
             #get the number of passing events
@@ -160,14 +161,6 @@ if __name__=='__main__':
 
     #Make a multigraph
     mg = ROOT.TMultiGraph()
-    mg.SetTitle("")
-    mg.GetXaxis().SetTitle("cut value")
-    mg.GetXaxis().SetTitleSize(0.1)
-    mg.GetXaxis().SetLabelSize(0.05)
-    mg.GetYaxis().SetTitle("S/#sqrt{B} @ "+str(sig_xsec/1000)+"pb")
-    mg.GetYaxis().SetTitleSize(0.1)
-    mg.GetYaxis().SetTitleOffset(.7)
-    mg.GetYaxis().SetLabelSize(0.05)
                 
     #Prep the pads
     tc = ROOT.TCanvas("tc",hname,600,800)
@@ -207,7 +200,7 @@ if __name__=='__main__':
         cutlist = np.zeros(hsum.GetNbinsX())
         signiflist = np.zeros(hsum.GetNbinsX())
 
-        for ibin in range(0,hsum.GetNbinsX()):
+        for ibin in range(hsum.GetNbinsX()):
             theocut = hsum.GetBinLowEdge(ibin)
             bkg     = 0
             sig     = 0
@@ -219,28 +212,37 @@ if __name__=='__main__':
             signiflist[ibin] = signif
             cutlist[ibin]    = theocut
 
-        print hsum.GetNbinsX()
-        print cutlist
-        print signiflist
+        #remove underflow bin
+        signiflist = np.delete(signiflist,0)
+        cutlist    = np.delete(cutlist,0)
 
-        tg = ROOT.TGraph(hsum.GetNbinsX(),cutlist,signiflist)
+        #Build the graphs
+        tg = ROOT.TGraph(hsum.GetNbinsX()-1,cutlist,signiflist)
         tg.SetTitle("")
         tg.SetLineWidth(2)
         tg.SetLineColor(masspoint["color"])
-        tg.GetXaxis().SetTitleSize(0.08)
-        tg.GetXaxis().SetLabelSize(0.05)
-        tg.GetYaxis().SetTitleSize(0.08)
-        tg.GetYaxis().SetTitleOffset(.7)
-        tg.GetYaxis().SetLabelSize(0.05)
         mg.Add(tg)
 
         #Make the second pad with the significance plot
         tc.cd()
         p2.Draw()
         p2.cd()
-        #tg.Draw()
         mg.Draw("AL")
-
+        #Now, the beauty aspects
+        mg.SetTitle("")
+        #x axis
+        mg.GetXaxis().SetTitle("cut value")
+        mg.GetXaxis().SetTitleSize(0.07)
+        mg.GetXaxis().SetLabelSize(0.05)
+        mg.GetXaxis().SetLimits(0,1)
+        #y axis
+        mg.GetYaxis().SetTitle("S/#sqrt{B} a.u.")
+        mg.GetYaxis().SetTitleSize(0.07)
+        mg.GetYaxis().SetTitleOffset(.7)
+        mg.GetYaxis().SetLabelSize(0.05)
+        mg.SetMinimum(0)
+        mg.SetMaximum(120)
+        
         #Go back to previous pad so next kinematic plots draw
         tc.cd()
         p1.cd()
