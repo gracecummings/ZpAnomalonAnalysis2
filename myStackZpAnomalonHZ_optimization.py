@@ -76,7 +76,8 @@ if __name__=='__main__':
     #ZZTo2L2Q   = glob.glob()
     bkgfiles   = [DYJetsToLL]#,TT]#,WZ,ZZ]
     bkgnames   = ["DYJetsToLL","TT","WZTo2L2Q","ZZTo2L2Q"]
-    sigfiles   = ["histsSig_Commitb1a1547/ZpAnomalonHZ_UFO-Zp2000-ND300-NS1_v2_94X_mc2017_realistic_v3_RA2AnalysisTree_hists_25000Events_Zpt100.0btag0.0mt2g1.0.root"]
+    sigfiles   = glob.glob('histsSig_Commitb1a1547_Zpt100DoubleBDisc0/ZpAnomalonHZ_UFO-*')
+    #sigfiles   = ["histsSig_Commitb1a1547_Zpt100DoubleBDisc0/ZpAnomalonHZ_UFO-Zp2000-ND300-NS1_v2_94X_mc2017_realistic_v3_RA2AnalysisTree_hists_25000Events_Zpt100.0btag0.0mt2g1.0.root"]
 
     #Prep signals
     sig_colors  = [kOrange,kOrange-3,kCyan,kCyan-6,kGreen,kGreen-6,kPink+7,kPink+4,kViolet+4,kMagenta-2,kMagenta+3]
@@ -161,10 +162,10 @@ if __name__=='__main__':
     mg = ROOT.TMultiGraph()
     mg.SetTitle("")
     mg.GetXaxis().SetTitle("cut value")
-    mg.GetXaxis().SetTitleSize(0.08)
+    mg.GetXaxis().SetTitleSize(0.1)
     mg.GetXaxis().SetLabelSize(0.05)
     mg.GetYaxis().SetTitle("S/#sqrt{B} @ "+str(sig_xsec/1000)+"pb")
-    mg.GetYaxis().SetTitleSize(0.08)
+    mg.GetYaxis().SetTitleSize(0.1)
     mg.GetYaxis().SetTitleOffset(.7)
     mg.GetYaxis().SetLabelSize(0.05)
                 
@@ -190,8 +191,6 @@ if __name__=='__main__':
     hsbkg.Draw("HIST")
 
     #Add the signal plots
-    #mg = ROOT.TMultiGraph()
-
     for p,masspoint in enumerate(sig_info):
         #print "def saw ",masspoint["name"]
         hsig = masspoint["tfile"].Get(hname)
@@ -200,12 +199,8 @@ if __name__=='__main__':
         hsig.SetLineColor(masspoint["color"])
         hsig.SetMaximum(10000000)
         hsig.SetMinimum(0.1)
-        leg.AddEntry(hsig,masspoint["name"]+" "+str(sig_xsec/1000)+" pb","l")
-        leg.SetBorderSize(0)
-
-        #Add signal curve to stack plot
         hsig.Draw("HISTSAME")
-        p1.Update()
+        leg.AddEntry(hsig,masspoint["name"]+" "+str(sig_xsec/1000)+" pb","l")
         
         #Now the significance calculation
         hsum = hsbkg.GetStack().Last()
@@ -241,20 +236,22 @@ if __name__=='__main__':
 
         #Make the second pad with the significance plot
         tc.cd()
-
         p2.Draw()
         p2.cd()
         #tg.Draw()
         mg.Draw("AL")
 
+        #Go back to previous pad so next kinematic plots draw
+        tc.cd()
+        p1.cd()
+
     #Draw the legent with everything added
-    tc.cd()
-    p1.cd()
+    leg.SetBorderSize(0)
     leg.Draw()
 
     #Save the plot
     savdir = str(date.today())
     if not os.path.exists("opt_plots/"+savdir):
         os.makedirs("opt_plots/"+savdir)
-    pngname = "opt_plots/"+savdir+"/"+hname+"_"+masspoint["name"]+".png" 
+    pngname = "opt_plots/"+savdir+"/"+hname+"_optimization.png" 
     tc.SaveAs(pngname)
