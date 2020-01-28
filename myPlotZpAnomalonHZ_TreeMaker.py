@@ -65,7 +65,10 @@ if __name__=='__main__':
     #inputfiles = sampletext.readlines()
 
     #Start the analysis
-    ch = TChain("TreeMaker2/PreSelection")#for signal, just Preslection for bkg
+    if isSig:
+        ch = TChain("TreeMaker2/PreSelection")#, just Preslection for bkg
+    else:
+        ch = TChain("PreSelection")
     #for f in inputfiles:
     #    print "     adding samples in ",f.strip('\n')
     #    ch.Add(f.strip('\n'))
@@ -93,11 +96,13 @@ if __name__=='__main__':
     #    print "original number of events: ",skimmed_events
     
     #Below is just a quick thing
-    ch.Add(mcfile+"/TreeMaker2/PreSelection")#uncomment for signal
-    skim = TFile(mcfile,"READ")
-    if not isSig:
+    if isSig:
+        ch.Add(mcfile+"/TreeMaker2/PreSelection")#uncomment for signal
+    else:
+        ch.Add(mcfile+"/PreSelection")
+        skim = TFile(mcfile,"READ")
         skimmed_events = skim.Get("hnevents").GetBinContent(1)
-    skim.Close()
+        skim.Close()
         
     #open output
     #Makes File to save histograms to
@@ -313,7 +318,8 @@ if __name__=='__main__':
                             tf                = ch.JetsAK8Clean[fat]
                             fat_SD            = ch.JetsAK8Clean_softDropMass[fat]
                             fat_id            = ch.JetsAK8Clean_ID[fat]
-                            fat_DoubleB       = ch.JetsAK8Clean_doubleBDiscriminator[fat]
+                            #fat_DoubleB       = ch.JetsAK8Clean_doubleBDiscriminator[fat]#bDiscriminatorCSV
+                            fat_DoubleB       = ch.JetsAK8Clean_deepDoubleBDiscriminatorH[fat]
                             fdict["DoubleB"]  = fat_DoubleB
                             fdict["fvec"]     = tf
                             fdict["softdrop"] = fat_SD
