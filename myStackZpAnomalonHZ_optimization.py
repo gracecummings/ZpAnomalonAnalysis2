@@ -28,6 +28,13 @@ def massZpsignal(nameSig):#unused
     s2 = s1.split("-")[0]
     return int(s2)
 
+def massNDsignalFile(histFile):
+    s1 = histFile.split("ZpAnomalonHZ_UFO-")[1]
+    s2 = s1.split("_v2")[0]
+    s3 = s2.split("ND")[1]
+    s4 = s3.split("-")[0]
+    return int(s4)
+
 def massNDsignal(nameSig):#unused
     s1 = nameSig.split("ND")[1]
     s2 = s1.split("-")[0]
@@ -78,6 +85,8 @@ if __name__=='__main__':
     bkgnames   = ["DYJetsToLL","TT","WZTo2L2Q","ZZTo2L2Q"]
     sigfiles   = glob.glob('histsSig_Commitb1a1547_Zpt100DoubleBDisc0/ZpAnomalonHZ_UFO-*')
 
+    sigfiles.sort()
+    
     #Prep signals
     sig_colors  = [kOrange,kOrange-3,kCyan,kCyan-6,kGreen,kGreen-6,kPink+7,kPink+4,kViolet+4,kMagenta-2,kMagenta+3]
     sig_info    = []
@@ -123,8 +132,6 @@ if __name__=='__main__':
             bkgbin_dict["tfile"]   = ROOT.TFile(bkgbin)
             bkgbin_sampsize        = bkgbin_dict["tfile"].Get('hnevents').GetBinContent(1)
             bkgbin_xs              = float(bkgbin_xs_pairs[s][1].split()[0])*1000#Into Femtobarns
-            print "bkgbin ",bkgbin
-            print "xsec pair ",bkgbin_xs_pairs[s]
             bkgbin_dict["scale"]   = findScale(float(bkgbin_sampsize),bkgbin_xs,lumi)
             bkgbin_dict["color"]   = bkg_colors[b]
             #get the number of passing events
@@ -167,7 +174,7 @@ if __name__=='__main__':
     p1 = ROOT.TPad("p1","stack_"+hname,0,0.4,1.0,1.0)
     #tc.SetLogy()
     p1.SetLogy()
-    p1.SetBottomMargin(0)
+    #p1.SetBottomMargin(0)
     p1.SetLeftMargin(0.15)
     p1.SetRightMargin(0.05)
     p2 = ROOT.TPad("p2","signif_"+hname,0,0.0,1.0,0.4)
@@ -182,7 +189,12 @@ if __name__=='__main__':
 
     #Draw the stack
     hsbkg.Draw("HIST")
-
+    hsbkg.GetXaxis().SetTitle("bDiscriminatorCSV")
+    hsbkg.GetXaxis().SetTitleSize(0.05)
+    hsbkg.GetYaxis().SetTitle("Events/0.02 discrim val")
+    hsbkg.GetYaxis().SetTitleSize(0.05)
+    tc.Modified()
+    
     #Add the signal plots
     for p,masspoint in enumerate(sig_info):
         #print "def saw ",masspoint["name"]
@@ -241,7 +253,7 @@ if __name__=='__main__':
         mg.GetYaxis().SetTitleOffset(.7)
         mg.GetYaxis().SetLabelSize(0.05)
         mg.SetMinimum(0)
-        mg.SetMaximum(120)
+        mg.SetMaximum(160)
         
         #Go back to previous pad so next kinematic plots draw
         tc.cd()
