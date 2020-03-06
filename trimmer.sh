@@ -10,7 +10,8 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_89/x86_64-slc6-gcc62-opt/setup.sh
 
 #run this mother
 echo "running the skimmer"
-python runTreeMakerTrimmer.py -s $1 -o $2 #This has been changed to spit file out where executed
+#python runTreeMakerTrimmer.py -f $1 -e $2 -o $3 #This has been changed to spit file out where executed
+python runTreeMakerTrimmer.py -e $1 -o $2 -f $4 #This has been changed to spit file out where executed
 
 #For each file created, do something. This needs to go to an eos space
 OUTDIR=root://cmseos.fnal.gov//store/user/gcumming/$3/
