@@ -6,6 +6,8 @@ import sys
 import glob
 import argparse
 import itertools
+import geco_base as gb
+import recursive_jigsaw_anomalon as rj
 
 def make4Vector(vdict):
     v = TLorentzVector()
@@ -55,55 +57,27 @@ if __name__=='__main__':
     isEOS     = args.isEOS
     mt2g      = args.mt2
 
-    #Make a list of input files
-    #eosprefix = "root://cmseos.fnal.gov/store/user/gcumming/"
-    #inputnanos  = glob.glob(mcdir+"/*")
-    #sortnanos   = sorted(inputnanos)
-    #outfdefault = mcdir+"_slimmedJet"
-    #imported list of files to cover
-    #sampletext = open("Fall17_DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8_ext1_cff.txt","r")
-    #inputfiles = sampletext.readlines()
 
     #Start the analysis
+    inputlist = []
     if isSig:
         ch = TChain("TreeMaker2/PreSelection")#, just Preslection for bkg
+        inputlist = glob.glob('sigSamplesCommitf27c357/'+mcfile+'*.root')
+        #Get Mass points
+        gzp,gennd,genns = gb.massPoints(mcfile)
     else:
         ch = TChain("PreSelection")
-    #for f in inputfiles:
-    #    print "     adding samples in ",f.strip('\n')
-    #    ch.Add(f.strip('\n'))
-
-    #how to read one file
-    #comment out above loop, uncomment below and put in file
+        inputlist = glob.glob('bkgSamplesCommitf27c357/'+mcfile+'*.root')
     print "Building the TChain"
 
     skimmed_events = 0
-
-    #if isSig and isEOS:
-    #    print "trying to open a signal sample from EOS"
-        #Thisneeds attention and trouble shooting
-        #Not formatted to actually pick up a file
-    #    ch.Add("root://cmseos.fnal.gov//store/user/gcumming/interactiveTreeMakerOutput/"+mcfile+".root/TreeMaker2/PreSelection")
-    #if not isSig and isEOS:
-    #    print "trying to open background sample from EOS"
-    #    ch.Add("root://cmseos.fnal.gov//store/user/gcumming/condorTreeMakerOutput/"+mcfile+"_*_RA2AnalysisTree.root/TreeMaker2/PreSelection")
-    #if not isSig and not isEOS:
-    #    print "trying to open background sample locally"
-    #    filelist = glob.glob("skims_ZpAnomalon/*/"+mcfile+"_skims_ZpAnomalon_*Events.root")
-    #    ch.Add(filelist[0]+"/PreSelection")
-    #    skim = TFile(filelist[0],"READ")
-    #    skimmed_events = skim.Get("hnevents").GetBinContent(1)
-    #    print "original number of events: ",skimmed_events
-    
-    #Below is just a quick thing
-    if isSig:
-        ch.Add(mcfile+"/TreeMaker2/PreSelection")#uncomment for signal
-    else:
-        ch.Add(mcfile+"/PreSelection")
-        skim = TFile(mcfile,"READ")
-        skimmed_events = skim.Get("hnevents").GetBinContent(1)
-        skim.Close()
-        
+    for f in inputlist:
+        ch.Add(f)
+        tf = TFile.Open(f)
+        if not isSig:
+            ntuple_events = tf.Get("hnevents").GetBinContent(1)
+            skimmed_events+=ntuple_events
+       
     #open output
     #Makes File to save histograms to
     events = ch.GetEntries()
@@ -116,13 +90,13 @@ if __name__=='__main__':
         outname = outf+"_"+str(events)+"Events.root"
         output = TFile("analysis_output_ZpAnomalon/"+str(date.today())+"/"+outname,"RECREATE")
     else:
-        outname = outfdefault+"_"+str(events)+"Events_Zpt"+str(zptcut)+"btag"+str(doubleBWP)+"mt2g"+str(mt2g)+".root"
+        outname = outfdefault+"_"+str(events)+"Events_Zpt"+str(zptcut)+"btag"+str(doubleBWP)+".root"
         output  = TFile("analysis_output_ZpAnomalon/"+str(date.today())+"/"+outname,"RECREATE")
     print "Created output file"
 
     #Import files that defines the histograms
     import leptophobic_zprime_hist_list_cfi as hist
-    
+
     #TCanvas for troubleshooting
     #Histograms initialized in config file
     #tc = TCanvas("tc","canvas for immediate interest",1800,1350)
@@ -140,11 +114,12 @@ if __name__=='__main__':
     close_ghgZ       = 0
     notclose_ghgZ    = 0
     ishclose_ghgZ    = 0
-    
+
     #Loop over all Events in TChain
     for i,event in enumerate(ch):
         events_process = i
-
+        #if i == 500:
+        #    break
         #This is a progresse counter
         if i % 5000 == 0:
             print "reading event "+str(i)
@@ -153,28 +128,28 @@ if __name__=='__main__':
         #if i == 1000000:
         #    break
         #Look at gen level
-        gnparts = len(ch.GenParticles)
-        ghiggs  = TLorentzVector()
-        gZ      = TLorentzVector()
-        gfv     = TLorentzVector
-        gmulist = []
-        zindex  = -999999
-        for j in range(gnparts):
-            gfv       = ch.GenParticles[j]
-            gpid      = ch.GenParticles_PdgId[j]
-            gstat     = ch.GenParticles_Status[j]
-            gmothrIdx = ch.GenParticles_ParentIdx[j]
-            gmothrID  = ch.GenParticles_ParentId[j]
-            if abs(gpid) == 25:
-                ghiggs = gfv
-            if abs(gpid) == 23:
-                gZ = gfv
-            if abs(gpid) == 13 and gmothrID == 23:
-                gmulist.append(gfv)
+        #gnparts = len(ch.GenParticles)
+        #ghiggs  = TLorentzVector()
+        #gZ      = TLorentzVector()
+        #gfv     = TLorentzVector
+        #gmulist = []
+        #zindex  = -999999
+        #for j in range(gnparts):
+        #    gfv       = ch.GenParticles[j]
+        #    gpid      = ch.GenParticles_PdgId[j]
+        #    gstat     = ch.GenParticles_Status[j]
+        #    gmothrIdx = ch.GenParticles_ParentIdx[j]
+        #    gmothrID  = ch.GenParticles_ParentId[j]
+        #    if abs(gpid) == 25:
+        #        ghiggs = gfv
+        #    if abs(gpid) == 23:
+        #        gZ = gfv
+        #    if abs(gpid) == 13 and gmothrID == 23:
+        #        gmulist.append(gfv)#
 
         #Gen particle studies
-        ghZdR            = lambda mu : deltaR(ghiggs,mu)
-        dRghiggsgmuons   = map(ghZdR,gmulist)
+        #ghZdR            = lambda mu : deltaR(ghiggs,mu)
+        #dRghiggsgmuons   = map(ghZdR,gmulist)
         #if isSig:
         #    dRghiggsclosegmu = min(dRghiggsgmuons)
         #    dRghiggsfargmu   = max(dRghiggsgmuons)
@@ -238,7 +213,7 @@ if __name__=='__main__':
                                 
                 #Looks at reconstructed Z
                 dimuon = mu1 + mu2
-                if dimuon.Pt() > 100:
+                if dimuon.Pt() > zptcut:
                     events_goodZ += 1
                     hist.hmu_zcand_pt.Fill(mu1.Pt())
                     hist.hmu_zcand_pt.Fill(mu2.Pt())
@@ -392,21 +367,85 @@ if __name__=='__main__':
                                 for z in range(int(znparts)):
                                     ztm = ch.ZCandidates[z]
                                     
-                                #Calculating angular varibles
+                                #Calculating angular varibles, compound variables
                                 dR_sfat_dimuon   = deltaR(sfat,dimuon)
                                 dR_sfat_mu1      = deltaR(sfat,mu1)
                                 dR_sfat_mu2      = deltaR(sfat,mu2)
                                 dR_mu1_mu2       = deltaR(mu1,mu2)
                                 deta_sfat_dimuon = abs(sfat.Eta()-dimuon.Eta())
                                 dphi_sfat_dimuon = abs(sfat.Phi()-dimuon.Phi())
+                                dphi_dimuon_ptmiss = abs(dimuon.Phi()-ptmiss_phi)
+                                dphi_sfat_ptmiss   = abs(sfat.Phi()-ptmiss_phi)
                                 if dphi_sfat_dimuon >= 3.14159:
                                     dphi_sfat_dimuon = 2*3.14159 - dphi_sfat_dimuon
+                                if dphi_dimuon_ptmiss >= 3.14159:
+                                    dphi_dimuon_ptmiss = 2*3.14159 - dphi_dimuon_ptmiss
+                                if dphi_sfat_ptmiss >= 3.14159:
+                                    dphi_sfat_ptmiss = 2*3.14159 - dphi_sfat_ptmiss
+                                zh = dimuon+sfat
+                                hist.hzh_mass.Fill(zh.M())
+                                hist.hzh_pt.Fill(zh.Pt())
+
+                                #Calculate Transverse Mass
+                                zMET_mt = sqrt(2*dimuon.Pt()*ptmiss*(1-cos(dphi_dimuon_ptmiss)))
+                                hMET_mt = sqrt(2*sfat.Pt()*ptmiss*(1-cos(dphi_sfat_ptmiss)))
+                                hist.hzMET_mt.Fill(zMET_mt)
+                                hist.hhMET_mt.Fill(hMET_mt)
+                                
                                 
                                 #Calculate Mt2
-                                mt2   = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfat.M(),sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,mt2g,mt2g,0)
-                                hmt2.Fill(mt2)
-                                mt2SD = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfdict["softdrop"],sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,mt2g,mt2g,0)
-                                hmt2SD.Fill(mt2SD)
+                                mt2200   = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfat.M(),sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,200,200,0)
+                                hist.hmt2200g.Fill(mt2200)
+                                mt2SD200 = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfdict["softdrop"],sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,200,200,0)
+                                hist.hmt2SD200g.Fill(mt2SD200)
+                                mt201   = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfat.M(),sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,1,1,0)
+                                hist.hmt201g.Fill(mt201)
+                                mt2SD01 = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfdict["softdrop"],sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,1,1,0)
+                                hist.hmt2SD01g.Fill(mt2SD01)
+
+
+                                #Calculate Razor
+                                z3p = dimuon.P()
+                                h3p = sfat.P()
+                                mr1 = sqrt((z3p+h3p)**2-(dimuon.Pz()+sfat.Pz())**2)
+                                twicemr1 = 2*mr1
+                                mrt = sqrt(0.5*(ptmiss*(dimuon.Pt()+sfat.Pt())-(ptmiss*sin(ptmiss_phi)*zh.Py()+ptmiss*cos(ptmiss_phi)*zh.Px())))
+                                r1  = mrt/mr1
+                                mr2 = sqrt(zh.Energy()**2-zh.Pz()**2)
+                                r2  = mrt/mr2
+                                hist.hmr1.Fill(mr1)
+                                hist.hmr2.Fill(mr2)
+                                hist.hmrt.Fill(mrt)
+                                hist.hr1var.Fill(r1)
+                                hist.hr2var.Fill(r2)
+                                hist.h2timemr1.Fill(twicemr1)
+                                
+
+                                #Calculate recursive jigsaw variables
+                                jigsawframes = {}
+                                rj.SetupRecoFrame(jigsawframes)
+                                jigsawframes['LAB'].InitializeAnalysis()
+                                jigsawframes['LAB'].ClearEvent()
+                                ptmiss_3vec = TVector3(ptmiss_px,ptmiss_py,0.)
+                                jigsawframes['INV'].SetLabFrameThreeVector(ptmiss_3vec)
+                                jigsawframes['Z'].SetLabFrameFourVector(dimuon)
+                                jigsawframes['h'].SetLabFrameFourVector(sfat)
+                                jigsawframes['LAB'].AnalyzeEvent()
+                                mZp = jigsawframes['Zp'].GetMass()
+                                mND = jigsawframes['ND'].GetMass()
+                                mNDbar = jigsawframes['NDbar'].GetMass()
+                                hist.hjigzp_mass.Fill(mZp)
+                                hist.hjignd_mass.Fill(mND)
+                                hist.hjigndbar_mass.Fill(mNDbar)
+
+                                #Make good estimate plots
+                                if isSig:
+                                    hist.hjignddiv.Fill(mND/gennd)
+                                    hist.hjigzpdiv.Fill(mZp/gzp)
+                                    hist.h2razdiv.Fill(twicemr1/gzp)
+                                    hmt2200div.Fill(mt2200/gennd)
+                                    hmt21div.Fill(mt201/gennd)
+                                    hist.hzmtdiv.Fill(zMET_mt/gennd)
                                 
                                 #Filling 1D histograms that cover selection based quantities 
                                 #hbtagfrac.Fill(len(flist)/fnparts)
@@ -416,6 +455,8 @@ if __name__=='__main__':
                                 hist.hmu1mu2_dR.Fill(dR_mu1_mu2)
                                 hist.hsfatdimuon_dphi.Fill(dphi_sfat_dimuon)
                                 hist.hsfatdimuon_deta.Fill(deta_sfat_dimuon)
+                                hist.hsfatMET_dphi.Fill(dphi_sfat_ptmiss)
+                                hist.hdimuonMET_dphi.Fill(dphi_dimuon_ptmiss)
                                 hist.hnfatpass.Fill(len(flist))
                                 hist.hsfjet_pt.Fill(sfat.Pt())
                                 hist.hlfjet_pt.Fill(lfat.Pt())
@@ -432,6 +473,7 @@ if __name__=='__main__':
                                 hist.hztm_mass.Fill(ztm.M())
                                 hist.hMETClean.Fill(ptmiss)
                                 hist.hMETClean_phi.Fill(ptmiss_phi)
+                                hist.hht.Fill(ch.GetLeaf("HTclean").GetValue())#Do not know how this is calculated
                             
                                 #Filing 2D Histograms
                                 #hist.hghmvslfSD.Fill(lfdict["SD"],ghiggs.M())
@@ -457,64 +499,64 @@ if __name__=='__main__':
         hist.hnevents_dRles8_ghgZ_onemu.SetBinContent(1,ishclose_ghgZ)
 
     #Set Colors for Stuff
-    hist.hztm_pt.SetLineColor(kRed)
-    hist.hztm_mass.SetLineColor(kRed)
+    #hist.hztm_pt.SetLineColor(kRed)
+    #hist.hztm_mass.SetLineColor(kRed)
     #hist.hlfjet_SD.SetLineColor(kRed)
     #hist.hsfjet_SD.SetLineColor(kBlue)
     #hist.hghlf_dphi.SetLineColor(kRed)
     #hist.hghsf_dphi.SetLineColor(kBlue)
     #hist.hbuiltjet_mass.SetLineColor(kRed)
     #hist.hmutm_zcand_pt.SetLineColor(kRed)
-    hist.hfj_unreclus_pt.SetLineColor(kRed)
-    hist.hfj_unreclus_mass.SetLineColor(kRed)
-    hist.hfj_unreclus_SD.SetLineColor(kRed)
-    hist.hdRgr8_unclus_pt.SetLineColor(kRed)
-    hist.hdRles8_one_unclus_pt.SetLineColor(kRed)
-    hist.hdRles8_both_unclus_pt.SetLineColor(kRed)
-    hist.hdRgr8_unclus_mass.SetLineColor(kRed)
-    hist.hdRles8_one_unclus_mass.SetLineColor(kRed)
-    hist.hdRles8_both_unclus_mass.SetLineColor(kRed)
-    hist.hdRgr8_unclus_SD.SetLineColor(kRed)
-    hist.hdRles8_one_unclus_SD.SetLineColor(kRed)
-    hist.hdRles8_both_unclus_SD.SetLineColor(kRed)
-    hist.hdRles8_both_unclus_fjmulti.SetLineColor(kRed)
-    hist.hdRles8_one_unclus_fjmulti.SetLineColor(kRed)
-    hist.hdRgr8_unclus_fjmulti.SetLineColor(kRed)
-    hist.hdRgr8_ghiggs_pt.SetLineColor(kGreen)
-    hist.hdRles8_both_ghiggs_pt.SetLineColor(kGreen)
-    hist.hdRles8_one_ghiggs_pt.SetLineColor(kGreen)
-    hist.hdRgr8_ghiggs_eta.SetLineColor(kGreen)
-    hist.hdRles8_both_ghiggs_eta.SetLineColor(kGreen)
-    hist.hdRles8_one_ghiggs_eta.SetLineColor(kGreen)
+    #hist.hfj_unreclus_pt.SetLineColor(kRed)
+    #hist.hfj_unreclus_mass.SetLineColor(kRed)
+    #hist.hfj_unreclus_SD.SetLineColor(kRed)
+    #hist.hdRgr8_unclus_pt.SetLineColor(kRed)
+    #hist.hdRles8_one_unclus_pt.SetLineColor(kRed)
+    #hist.hdRles8_both_unclus_pt.SetLineColor(kRed)
+    #hist.hdRgr8_unclus_mass.SetLineColor(kRed)
+    #hist.hdRles8_one_unclus_mass.SetLineColor(kRed)
+    #hist.hdRles8_both_unclus_mass.SetLineColor(kRed)
+    #hist.hdRgr8_unclus_SD.SetLineColor(kRed)
+    #hist.hdRles8_one_unclus_SD.SetLineColor(kRed)
+    #hist.hdRles8_both_unclus_SD.SetLineColor(kRed)
+    #hist.hdRles8_both_unclus_fjmulti.SetLineColor(kRed)
+    #hist.hdRles8_one_unclus_fjmulti.SetLineColor(kRed)
+    #hist.hdRgr8_unclus_fjmulti.SetLineColor(kRed)
+    #hist.hdRgr8_ghiggs_pt.SetLineColor(kGreen)
+    #hist.hdRles8_both_ghiggs_pt.SetLineColor(kGreen)
+    #hist.hdRles8_one_ghiggs_pt.SetLineColor(kGreen)
+    #hist.hdRgr8_ghiggs_eta.SetLineColor(kGreen)
+    #hist.hdRles8_both_ghiggs_eta.SetLineColor(kGreen)
+    #hist.hdRles8_one_ghiggs_eta.SetLineColor(kGreen)
 
     #Create Stacks
-    hist.hsgr8_pt.Add(hdRgr8_unclus_pt)
-    hist.hsgr8_pt.Add(hdRgr8_fjet_pt)
-    hist.hsgr8_pt.Add(hdRgr8_ghiggs_pt)
-    hist.hsgr8_mass.Add(hdRgr8_unclus_mass)
-    hist.hsgr8_mass.Add(hdRgr8_fjet_mass)
-    hist.hsgr8_SD.Add(hdRgr8_unclus_SD)
-    hist.hsgr8_SD.Add(hdRgr8_fjet_SD)    
-    hist.hsles8_both_pt.Add(hdRles8_both_unclus_pt)
-    hist.hsles8_both_pt.Add(hdRles8_both_fjet_pt)
-    hist.hsles8_both_pt.Add(hdRles8_both_ghiggs_pt)
-    hist.hsles8_both_mass.Add(hdRles8_both_unclus_mass)
-    hist.hsles8_both_mass.Add(hdRles8_both_fjet_mass)
-    hist.hsles8_both_SD.Add(hdRles8_both_unclus_SD)
-    hist.hsles8_both_SD.Add(hdRles8_both_fjet_SD)
-    hist.hsles8_one_pt.Add(hdRles8_one_unclus_pt)
-    hist.hsles8_one_pt.Add(hdRles8_one_fjet_pt)
-    hist.hsles8_one_pt.Add(hdRles8_one_ghiggs_pt)
-    hist.hsles8_one_mass.Add(hdRles8_one_unclus_mass)
-    hist.hsles8_one_mass.Add(hdRles8_one_fjet_mass)
-    hist.hsles8_one_SD.Add(hdRles8_one_unclus_SD)
-    hist.hsles8_one_SD.Add(hdRles8_one_fjet_SD)
-    hist.hsles8_both_fjmulti.Add(hdRles8_both_unclus_fjmulti)
-    hist.hsles8_both_fjmulti.Add(hdRles8_both_fjet_fjmulti)
-    hist.hsles8_one_fjmulti.Add(hdRles8_one_unclus_fjmulti)
-    hist.hsles8_one_fjmulti.Add(hdRles8_one_fjet_fjmulti)
-    hist.hsgr8_fjmulti.Add(hdRgr8_unclus_fjmulti)
-    hist.hsgr8_fjmulti.Add(hdRgr8_fjet_fjmulti)
+    #hist.hsgr8_pt.Add(hdRgr8_unclus_pt)
+    #hist.hsgr8_pt.Add(hdRgr8_fjet_pt)
+    #hist.hsgr8_pt.Add(hdRgr8_ghiggs_pt)
+    #hist.hsgr8_mass.Add(hdRgr8_unclus_mass)
+    #hist.hsgr8_mass.Add(hdRgr8_fjet_mass)
+    #hist.hsgr8_SD.Add(hdRgr8_unclus_SD)
+    #hist.hsgr8_SD.Add(hdRgr8_fjet_SD)    
+    #hist.hsles8_both_pt.Add(hdRles8_both_unclus_pt)
+    #hist.hsles8_both_pt.Add(hdRles8_both_fjet_pt)
+    #hist.hsles8_both_pt.Add(hdRles8_both_ghiggs_pt)
+    #hist.hsles8_both_mass.Add(hdRles8_both_unclus_mass)
+    #hist.hsles8_both_mass.Add(hdRles8_both_fjet_mass)
+    #hist.hsles8_both_SD.Add(hdRles8_both_unclus_SD)
+    #hist.hsles8_both_SD.Add(hdRles8_both_fjet_SD)
+    #hist.hsles8_one_pt.Add(hdRles8_one_unclus_pt)
+    #hist.hsles8_one_pt.Add(hdRles8_one_fjet_pt)
+    #hist.hsles8_one_pt.Add(hdRles8_one_ghiggs_pt)
+    #hist.hsles8_one_mass.Add(hdRles8_one_unclus_mass)
+    #hist.hsles8_one_mass.Add(hdRles8_one_fjet_mass)
+    #hist.hsles8_one_SD.Add(hdRles8_one_unclus_SD)
+    #hist.hsles8_one_SD.Add(hdRles8_one_fjet_SD)
+    #hist.hsles8_both_fjmulti.Add(hdRles8_both_unclus_fjmulti)
+    #hist.hsles8_both_fjmulti.Add(hdRles8_both_fjet_fjmulti)
+    #hist.hsles8_one_fjmulti.Add(hdRles8_one_unclus_fjmulti)
+    #hist.hsles8_one_fjmulti.Add(hdRles8_one_fjet_fjmulti)
+    #hist.hsgr8_fjmulti.Add(hdRgr8_unclus_fjmulti)
+    #hist.hsgr8_fjmulti.Add(hdRgr8_fjet_fjmulti)
     
     #tc.Divide(3,4)
     #Column 1
@@ -574,9 +616,9 @@ if __name__=='__main__':
     output.Close()
 
     print "Wrote and saved generated histograms in ",outname
-    print "press enter to continue"
+    #print "press enter to continue"
     #Keep the canvas open
-    sys.stdin.readline()
+    #sys.stdin.readline()
     
                     
                     

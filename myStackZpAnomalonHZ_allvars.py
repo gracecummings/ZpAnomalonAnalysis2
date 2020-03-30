@@ -3,7 +3,7 @@ import ROOT
 import glob
 import os
 import ConfigParser
-#import numpy as np
+import geco_base
 from datetime import date
 from ROOT import kOrange, kViolet, kCyan, kGreen, kPink, kAzure, kMagenta, kBlue
 
@@ -20,7 +20,7 @@ def nameFall17(histFile):
 
 def nameSignal(histFile):
     s1 = histFile.split("ZpAnomalonHZ_")[1]
-    s2 = s1.split("_v2")[0]
+    s2 = s1.split("_hists")[0]
     return s2
 
 def massZpsignal(nameSig):#unused
@@ -35,9 +35,9 @@ def massNDsignal(nameSig):#unused
 
 def massPoints(nameSig):
     s1  = nameSig.split("-")
-    mzp = int(s1[0].split("Zp")[1])
-    mnd = int(s1[1].split("ND")[1])
-    mns = int(s1[2].split("NS")[1])
+    mzp = int(s1[1].split("Zp")[1])
+    mnd = int(s1[2].split("ND")[1])
+    mns = int(s1[3].split("NS")[1])
     return mzp,mnd,mns
 
 def orderFall17DY(histFile):
@@ -46,7 +46,7 @@ def orderFall17DY(histFile):
     return int(s2)
 
 def orderFall17TT(histFile):
-    s1 = histFile.split("MiniAOD")[0]
+    s1 = histFile.split("Events")[0]
     s2 = s1.split("_")[-1]
     return int(s2)
 
@@ -68,23 +68,24 @@ if __name__=='__main__':
     sig_xsec = args.xsec
 
     #Files to stack
-    DYJetsToLL = glob.glob('histsBkg_Commitb1a1547/Fall17.DYJetsToLL_M-50_HT*')#Add more dynamics here
-    TT         = glob.glob('histsBkg_Commitb1a1547/Fall17.TTT*')#Add more dynamics here)
-    #WZTo2L2Q   = glob.glob()
-    #ZZTo2L2Q   = glob.glob()
-    bkgfiles   = [DYJetsToLL,TT]#,WZ,ZZ]
+    DYJetsToLL = glob.glob('histsBkgCommitf27c357/Fall17.DYJetsToLL_M-50_HT*')#Add more dynamics here
+    TT         = glob.glob('histsBkgCommitf27c357/Fall17.TTT*')#Add more dynamics here)
+    WZTo2L2Q   = glob.glob('histsBkgCommitf27c357/Fall17.WZTo2L2Q*')
+    ZZTo2L2Q   = glob.glob('histsBkgCommitf27c357/Fall17.ZZTo2L2Q*')
+    bkgfiles   = [DYJetsToLL,TT,WZTo2L2Q,ZZTo2L2Q]
     bkgnames   = ["DYJetsToLL","TT","WZTo2L2Q","ZZTo2L2Q"]
-    sigfiles   = glob.glob('histsSig_Commitb1a1547/ZpAnomalonHZ_Zp*_v2*')
-
+    sigfiles   = glob.glob('histsSigCommitf27c357/ZpAnomalonHZ_UFO-Zp*')
     #Prep signals
-    sig_colors  = [kOrange,kOrange-3,kCyan,kCyan-6,kGreen,kGreen-6,kPink+7,kPink+4,kViolet+4,kMagenta-2,kMagenta+3]
+    #sig_colors  = [kOrange,kOrange-3,kCyan,kCyan-6,kGreen,kGreen-6,kPink+7,kPink+4,kViolet+4,kMagenta-2,kMagenta+3]
+    sig_colors = geco_base.colsFromPalette(sigfiles,ROOT.kCMYK)
     sig_info    = []
+
     for s,sig in enumerate(sigfiles):
         sig_dict = {}
         sig_dict["tfile"] = ROOT.TFile(sig)
         sig_samplesize    = sig_dict["tfile"].Get('hnevents').GetBinContent(1)
         sig_dict["scale"] = findScale(float(sig_samplesize),sig_xsec,lumi)
-        sig_dict["color"] = sig_colors[s]
+        #sig_dict["color"] = sig_colors[s]
         sig_dict["name"]  = nameSignal(sig)
         mzp,mnd,mns       = massPoints(sig_dict["name"])
         sig_dict["mzp"]   = mzp
@@ -92,14 +93,19 @@ if __name__=='__main__':
         sig_dict["mns"]   = mns
         sig_info.append(sig_dict)
 
-    #Sort Signals by NS mass, then by ND mass
-    sig_info = sorted(sig_info,key = lambda sig: (sig["mns"],sig["mnd"]))
+    #Sort Signals
+    sig_info = sorted(sig_info,key = lambda sig: (sig["mnd"],sig["mzp"],sig["mns"]))
+
+    for s,sig in enumerate(sig_info):
+        sig["color"] = sig_colors[s]
 
     #Prep backgrounds
     fp = open('xsects_2017.ini')
     config.readfp(fp)
-    bkg_colors = [kAzure-4,kViolet,kAzure-6,kViolet+8,kBlue,kViolet-5,kBlue-8,kViolet+6]
+    #bkg_colors = [kAzure-4,kViolet,kAzure-6,kViolet+8,kBlue,kViolet-5,kBlue-8,kViolet+6]
+    bkg_colors = geco_base.colsFromPalette(bkgnames,ROOT.kLake)
     bkg_info   = []
+    
     #Loop through the different bkg processes
     for b,bkg in enumerate(bkgfiles):
         bkg_binsum   = {}
@@ -128,7 +134,6 @@ if __name__=='__main__':
             bkg_expyield          += bkgbin_yield*bkgbin_dict["scale"]
             bkg_binlist.append(bkgbin_dict)
             bkg_binsum["expyield"] = bkg_expyield
-            
             #debug
             #print nameFall17(bkgbin)
             #print "the number of events initially ran over ",bkgbin_sampsize
@@ -151,8 +156,8 @@ if __name__=='__main__':
     #Make some plots
     for i,key in enumerate(keys):
         hname = key.GetName()                                                                      
-        tc = ROOT.TCanvas("tc",hname,600,600)                                                      
-        tc.SetLogy()                                                                               
+        tc = ROOT.TCanvas("tc",hname,600,600)
+        #tc.SetLogy()
         leg = ROOT.TLegend(0.45,0.55,0.90,0.88)
         hsbkg = ROOT.THStack('hsbkg','')
         for bkg in bkg_info:
@@ -164,12 +169,13 @@ if __name__=='__main__':
                 hbkg.SetStats(0)
                 hbkg.Scale(bkgbin["scale"])
                 hbkg.SetFillColor(bkgbin["color"])
-                hbkg.SetMaximum(10000000)
-                hbkg.SetMinimum(0.1)
+                hbkg.SetLineColor(bkgbin["color"])
+                hbkg.SetMaximum(500)
+                #hbkg.SetMinimum(0.1)
                 hsbkg.Add(hbkg)
                 hsbkg.Draw("HIST")
-                hsbkg.SetMaximum(10000000)
-                hsbkg.SetMinimum(0.1)
+                hsbkg.SetMaximum(500)
+                #hsbkg.SetMinimum(0.1)
                 if b == len(bkg["binlist"])-1:
                     leg.AddEntry(hbkg,bkg["name"],"f")
 
@@ -178,10 +184,11 @@ if __name__=='__main__':
             hsig.SetStats(0)
             hsig.Scale(sig["scale"])
             hsig.SetLineColor(sig["color"])
-            hsig.SetMaximum(10000000)
-            hsig.SetMinimum(0.1)
+            hsig.SetLineWidth(2)
+            hsig.SetMaximum(500)
+            #hsig.SetMinimum(0.1)
             hsig.Draw("HISTSAME")
-            leg.AddEntry(hsig,sig["name"]+" "+str(sig_xsec/1000)+" pb","l")
+            leg.AddEntry(hsig,"Zp"+str(sig["mzp"])+" ND"+str(sig["mnd"])+" NS"+str(sig["mns"])+" "+str(sig_xsec/1000)+" pb","l")
                     
         ROOT.gStyle.SetLegendBorderSize(0)
         leg.Draw()
@@ -189,5 +196,5 @@ if __name__=='__main__':
         savdir = str(date.today())
         if not os.path.exists("stacked_stuff/"+savdir):
             os.makedirs("stacked_stuff/"+savdir)
-        pngname = "stacked_stuff/"+savdir+"/"+hname+".png" 
+        pngname = "stacked_stuff/"+savdir+"/"+hname+".png"
         tc.SaveAs(pngname)
