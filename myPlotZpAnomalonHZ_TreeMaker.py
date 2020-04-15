@@ -43,8 +43,6 @@ if __name__=='__main__':
     parser.add_argument("-s","--isSig", type=bool,help="is this a signal sample?")
     parser.add_argument("-wp","--btagWP",type=float,default=0.6,help = "doulbeB tagger working point (default M1)")
     parser.add_argument("-z","--zPtCut",type=float,default = 100,help = "pT cut on Z")
-    parser.add_argument("-mt2","--mt2",type=float,default = 200,help = "guess for mt2 mass")
-    parser.add_argument("-e","--isEOS",type=bool, help = "is this file on EOS")
     args = parser.parse_args()
 
     #Defined by command line options
@@ -54,8 +52,6 @@ if __name__=='__main__':
     doubleBWP = args.btagWP
     zptcut    = args.zPtCut
     isSig     = args.isSig
-    isEOS     = args.isEOS
-    mt2g      = args.mt2
 
 
     #Start the analysis
@@ -106,9 +102,10 @@ if __name__=='__main__':
     #Put Counters Here
     events_passing   = 0#passing events
     events_process   = 0
-    events_gfj       = 0#events with a passing higgs candidate
+    events_gfj       = 0#events with a passing fat jet
     events_goodZ     = 0#events with a passing Z
     accepted_fj      = 0#number of passing fat jets in total
+    events_pMET      = 0#events passing MET cut
     accepted_unrecfj = 0
     accepted_recfj   = 0
     close_ghgZ       = 0
@@ -226,6 +223,7 @@ if __name__=='__main__':
                     nextsfat      = TLorentzVector()
                     unclusfat     = TLorentzVector()
                     flist         = []
+                    clist         = []
                     frecluslist   = []
                     funcluslist   = []
                     lfdict        = {}
@@ -300,11 +298,14 @@ if __name__=='__main__':
                             fdict["softdrop"] = fat_SD
                             if tf.Pt() > 250 and abs(tf.Eta()) < 2.4 and fat_id and fat_SD > 50 and fat_DoubleB >= doubleBWP:
                                 accepted_recfj += 1
-                                frecluslist.append(fdict)
+                                #frecluslist.append(fdict)
+                                #if fat_SD > 105 and fat_SD < 145:
                                 flist.append(fdict)
-                                hist.hfjet_reclus_pt.Fill(tf.Pt())
-                                hist.hfjet_reclus_mass.Fill(tf.M())
-                                hist.hfjet_reclus_SD.Fill(fat_SD)
+                                #else:
+                                #    clist.append(fdict)
+                                #hist.hfjet_reclus_pt.Fill(tf.Pt())
+                                #hist.hfjet_reclus_mass.Fill(tf.M())
+                                #hist.hfjet_reclus_SD.Fill(fat_SD)
 
                                 #Filling Hists that apply to all fat jets
                                 hist.hfjet_pt.Fill(tf.Pt())
@@ -312,14 +313,13 @@ if __name__=='__main__':
                                 hist.hfjet_SD.Fill(fat_SD)
 
                             #This compares reclustered to unreclusted
-                            if funcluslist != []:
-                                for jet in funcluslist:
-                                    hist.hfj_unreclus_pt.Fill(jet["fvec"].Pt())
-                                    hist.hfj_unreclus_mass.Fill(jet["fvec"].M())
-                                    hist.hfj_unreclus_SD.Fill(jet["softdrop"])
+                            #if funcluslist != []:
+                            #    for jet in funcluslist:
+                            #        hist.hfj_unreclus_pt.Fill(jet["fvec"].Pt())
+                            #        hist.hfj_unreclus_mass.Fill(jet["fvec"].M())
+                            #        hist.hfj_unreclus_SD.Fill(jet["softdrop"])
                     
-                        if flist == []:
-
+                        if flist == []:# and clist == []:
                             continue
                         else:
                             accepted_fj += len(flist)            
@@ -328,7 +328,7 @@ if __name__=='__main__':
                             lfdict = max(flist, key = lambda fat : fat["fvec"].Pt())
                             sfat   = sfdict["fvec"]
                             lfat   = lfdict["fvec"]
-
+                             
                             #Compares selections with reclustering to unreclustered selections
                             #This should compare the ones that used to be close to the new ones
                             #Comments below can be used for new distribution
@@ -351,7 +351,8 @@ if __name__=='__main__':
                             #    hist.hdRgr8_fjet_fjmulti.Fill(len(flist))
                                 
                             if ptmiss > 50:
-                                events_passing += 1
+                                #events_passing += 1
+                                events_pMET += 1
                                 ptmiss_px = ptmiss*cos(ptmiss_phi)
                                 ptmiss_py = ptmiss*sin(ptmiss_phi)
                                 #Calculating Generator Level Observables
@@ -383,25 +384,17 @@ if __name__=='__main__':
                                 if dphi_sfat_ptmiss >= 3.14159:
                                     dphi_sfat_ptmiss = 2*3.14159 - dphi_sfat_ptmiss
                                 zh = dimuon+sfat
-                                hist.hzh_mass.Fill(zh.M())
-                                hist.hzh_pt.Fill(zh.Pt())
 
                                 #Calculate Transverse Mass
                                 zMET_mt = sqrt(2*dimuon.Pt()*ptmiss*(1-cos(dphi_dimuon_ptmiss)))
                                 hMET_mt = sqrt(2*sfat.Pt()*ptmiss*(1-cos(dphi_sfat_ptmiss)))
-                                hist.hzMET_mt.Fill(zMET_mt)
-                                hist.hhMET_mt.Fill(hMET_mt)
-                                
                                 
                                 #Calculate Mt2
                                 mt2200   = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfat.M(),sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,200,200,0)
-                                hist.hmt2200g.Fill(mt2200)
                                 mt2SD200 = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfdict["softdrop"],sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,200,200,0)
-                                hist.hmt2SD200g.Fill(mt2SD200)
                                 mt201   = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfat.M(),sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,1,1,0)
-                                hist.hmt201g.Fill(mt201)
                                 mt2SD01 = MT2Class.get_mT2(dimuon.M(),dimuon.Px(),dimuon.Py(),sfdict["softdrop"],sfat.Px(),sfat.Py(),ptmiss_px,ptmiss_py,1,1,0)
-                                hist.hmt2SD01g.Fill(mt2SD01)
+                                
 
 
                                 #Calculate Razor
@@ -413,13 +406,6 @@ if __name__=='__main__':
                                 r1  = mrt/mr1
                                 mr2 = sqrt(zh.Energy()**2-zh.Pz()**2)
                                 r2  = mrt/mr2
-                                hist.hmr1.Fill(mr1)
-                                hist.hmr2.Fill(mr2)
-                                hist.hmrt.Fill(mrt)
-                                hist.hr1var.Fill(r1)
-                                hist.hr2var.Fill(r2)
-                                hist.h2timemr1.Fill(twicemr1)
-                                
 
                                 #Calculate recursive jigsaw variables
                                 jigsawframes = {}
@@ -434,61 +420,135 @@ if __name__=='__main__':
                                 mZp = jigsawframes['Zp'].GetMass()
                                 mND = jigsawframes['ND'].GetMass()
                                 mNDbar = jigsawframes['NDbar'].GetMass()
-                                hist.hjigzp_mass.Fill(mZp)
-                                hist.hjignd_mass.Fill(mND)
-                                hist.hjigndbar_mass.Fill(mNDbar)
 
-                                #Make good estimate plots
-                                if isSig:
-                                    hist.hjignddiv.Fill(mND/gennd)
-                                    hist.hjigzpdiv.Fill(mZp/gzp)
-                                    hist.h2razdiv.Fill(twicemr1/gzp)
-                                    hmt2200div.Fill(mt2200/gennd)
-                                    hmt21div.Fill(mt201/gennd)
-                                    hist.hzmtdiv.Fill(zMET_mt/gennd)
+                                #if sfdict["softdrop"] > 110 and sfdict["softdrop"] < 140:
+                                if hMET_mt >= 400:
+                                    events_passing += 1
+
+                                    #Make good estimate plots
+                                    if isSig:
+                                        hist.hjignddiv.Fill(mND/gennd)
+                                        hist.hjigzpdiv.Fill(mZp/gzp)
+                                        hist.h2razdiv.Fill(twicemr1/gzp)
+                                        hmt2200div.Fill(mt2200/gennd)
+                                        hmt21div.Fill(mt201/gennd)
+                                        hist.hzmtdiv.Fill(zMET_mt/gennd)
                                 
-                                #Filling 1D histograms that cover selection based quantities 
-                                #hbtagfrac.Fill(len(flist)/fnparts)
-                                hist.hsfatdimuon_dR.Fill(dR_sfat_dimuon)
-                                hist.hsfatmu1_dR.Fill(dR_sfat_mu1)
-                                hist.hsfatmu2_dR.Fill(dR_sfat_mu2)
-                                hist.hmu1mu2_dR.Fill(dR_mu1_mu2)
-                                hist.hsfatdimuon_dphi.Fill(dphi_sfat_dimuon)
-                                hist.hsfatdimuon_deta.Fill(deta_sfat_dimuon)
-                                hist.hsfatMET_dphi.Fill(dphi_sfat_ptmiss)
-                                hist.hdimuonMET_dphi.Fill(dphi_dimuon_ptmiss)
-                                hist.hnfatpass.Fill(len(flist))
-                                hist.hsfjet_pt.Fill(sfat.Pt())
-                                hist.hlfjet_pt.Fill(lfat.Pt())
-                                hist.hsfjet_btag.Fill(sfdict["DoubleB"])
-                                hist.hsfjet_mass.Fill(sfat.M())
-                                hist.hlfjet_mass.Fill(lfat.M())
-                                hist.hsfjet_SD.Fill(sfdict["softdrop"])
-                                hist.hlfjet_SD.Fill(lfdict["softdrop"])
-                                #hist.hghlf_dphi.Fill(dphi_ghlf)
-                                #hist.hghsf_dphi.Fill(dphi_ghsf)
-                                hist.hzreco_pt.Fill(dimuon.Pt())
-                                hist.hztm_pt.Fill(ztm.Pt())
-                                hist.hzreco_mass.Fill(dimuon.M())
-                                hist.hztm_mass.Fill(ztm.M())
-                                hist.hMETClean.Fill(ptmiss)
-                                hist.hMETClean_phi.Fill(ptmiss_phi)
-                                hist.hht.Fill(ch.GetLeaf("HTclean").GetValue())#Do not know how this is calculated
-                            
-                                #Filing 2D Histograms
-                                #hist.hghmvslfSD.Fill(lfdict["SD"],ghiggs.M())
-                                #hist.hghmvssfSD.Fill(sfdict["SD"],ghiggs.M())
-                                #hist.hgZphivsdimuphi.Fill(dimuon.Phi(),gZ.Phi())
-                                #hist.hghphivslfphi.Fill(lfat.Phi(),ghiggs.Phi())
-                                #hist.hghphivssfphi.Fill(sfat.Phi(),ghiggs.Phi())
-                                #hist.hlfphivssfphi.Fill(sfat.Phi(),lfat.Phi())
+                                    #Filling 1D histograms that cover selection based quantities 
+                                    #hbtagfrac.Fill(len(flist)/fnparts)
+                                    hist.hsfatdimuon_dR.Fill(dR_sfat_dimuon)
+                                    hist.hsfatmu1_dR.Fill(dR_sfat_mu1)
+                                    hist.hsfatmu2_dR.Fill(dR_sfat_mu2)
+                                    hist.hmu1mu2_dR.Fill(dR_mu1_mu2)
+                                    hist.hsfatdimuon_dphi.Fill(dphi_sfat_dimuon)
+                                    hist.hsfatdimuon_deta.Fill(deta_sfat_dimuon)
+                                    hist.hsfatMET_dphi.Fill(dphi_sfat_ptmiss)
+                                    hist.hdimuonMET_dphi.Fill(dphi_dimuon_ptmiss)
+                                    hist.hnfatpass.Fill(len(flist))
+                                    hist.hsfjet_pt.Fill(sfat.Pt())
+                                    hist.hlfjet_pt.Fill(lfat.Pt())
+                                    hist.hsfjet_btag.Fill(sfdict["DoubleB"])
+                                    hist.hsfjet_mass.Fill(sfat.M())
+                                    hist.hlfjet_mass.Fill(lfat.M())
+                                    hist.hsfjet_SD.Fill(sfdict["softdrop"])
+                                    hist.hlfjet_SD.Fill(lfdict["softdrop"])
+                                    #hist.hghlf_dphi.Fill(dphi_ghlf)
+                                    #hist.hghsf_dphi.Fill(dphi_ghsf)
+                                    hist.hzreco_pt.Fill(dimuon.Pt())
+                                    hist.hztm_pt.Fill(ztm.Pt())
+                                    hist.hzreco_mass.Fill(dimuon.M())
+                                    hist.hztm_mass.Fill(ztm.M())
+                                    hist.hMETClean.Fill(ptmiss)
+                                    hist.hMETClean_phi.Fill(ptmiss_phi)
+                                    hist.hht.Fill(ch.GetLeaf("HTclean").GetValue())#Do not know how this is calculated
+                                    hist.hzh_mass.Fill(zh.M())
+                                    hist.hzh_pt.Fill(zh.Pt())
+                                    hist.hzMET_mt.Fill(zMET_mt)
+                                    hist.hhMET_mt.Fill(hMET_mt)
+                                    hist.hmt2200g.Fill(mt2200)
+                                    hist.hmt2SD200g.Fill(mt2SD200)
+                                    hist.hmt201g.Fill(mt201)
+                                    hist.hmt2SD01g.Fill(mt2SD01)
+                                    hist.hmr1.Fill(mr1)
+                                    hist.hmr2.Fill(mr2)
+                                    hist.hmrt.Fill(mrt)
+                                    hist.hr1var.Fill(r1)
+                                    hist.hr2var.Fill(r2)
+                                    hist.h2timemr1.Fill(twicemr1)
+                                    hist.hjigzp_mass.Fill(mZp)
+                                    hist.hjignd_mass.Fill(mND)
+                                    hist.hjigndbar_mass.Fill(mNDbar)
+
+                                    #Filing 2D Histograms
+                                    #hist.hghmvslfSD.Fill(lfdict["SD"],ghiggs.M())
+                                    #hist.hghmvssfSD.Fill(sfdict["SD"],ghiggs.M())
+                                    #hist.hgZphivsdimuphi.Fill(dimuon.Phi(),gZ.Phi())
+                                    #hist.hghphivslfphi.Fill(lfat.Phi(),ghiggs.Phi())
+                                    #hist.hghphivssfphi.Fill(sfat.Phi(),ghiggs.Phi())
+                                    #hist.hlfphivssfphi.Fill(sfat.Phi(),lfat.Phi())
+
+                                else:#control region
+
+                                    #Make good estimate plots
+                                    if isSig:
+                                        hist.h_ctrl_jignddiv.Fill(mND/gennd)
+                                        hist.h_ctrl_jigzpdiv.Fill(mZp/gzp)
+                                        hist.h_ctrl_2razdiv.Fill(twicemr1/gzp)
+                                        hist.h_ctrl_mt2200div.Fill(mt2200/gennd)
+                                        hist.h_ctrl_mt21div.Fill(mt201/gennd)
+                                        hist.h_ctrl_zmtdiv.Fill(zMET_mt/gennd)
+                                
+                                    #Filling 1D histograms that cover selection based quantiti
+                                    hist.hsfatdimuon_ctrl_dR.Fill(dR_sfat_dimuon)
+                                    hist.hsfatmu1_ctrl_dR.Fill(dR_sfat_mu1)
+                                    hist.hsfatmu2_ctrl_dR.Fill(dR_sfat_mu2)
+                                    hist.hmu1mu2_ctrl_dR.Fill(dR_mu1_mu2)
+                                    hist.hsfatdimuon_ctrl_dphi.Fill(dphi_sfat_dimuon)
+                                    hist.hsfatdimuon_ctrl_deta.Fill(deta_sfat_dimuon)
+                                    hist.hsfatMET_ctrl_dphi.Fill(dphi_sfat_ptmiss)
+                                    hist.hdimuonMET_ctrl_dphi.Fill(dphi_dimuon_ptmiss)
+                                    hist.h_ctrl_nfatpass.Fill(len(flist))
+                                    hist.hsfjet_ctrl_pt.Fill(sfat.Pt())
+                                    hist.hlfjet_ctrl_pt.Fill(lfat.Pt())
+                                    hist.hsfjet_ctrl_btag.Fill(sfdict["DoubleB"])
+                                    hist.hsfjet_ctrl_mass.Fill(sfat.M())
+                                    hist.hlfjet_ctrl_mass.Fill(lfat.M())
+                                    hist.hsfjet_ctrl_SD.Fill(sfdict["softdrop"])
+                                    hist.hlfjet_ctrl_SD.Fill(lfdict["softdrop"])
+                                    #hist.hghlf_dphi.Fill(dphi_ghlf)
+                                    #hist.hghsf_dphi.Fill(dphi_ghsf)
+                                    hist.hzreco_ctrl_pt.Fill(dimuon.Pt())
+                                    hist.hztm_ctrl_pt.Fill(ztm.Pt())
+                                    hist.hzreco_ctrl_mass.Fill(dimuon.M())
+                                    hist.hztm_ctrl_mass.Fill(ztm.M())
+                                    hist.h_ctrl_METClean.Fill(ptmiss)
+                                    hist.hMETClean_ctrl_phi.Fill(ptmiss_phi)
+                                    hist.h_ctrl_ht.Fill(ch.GetLeaf("HTclean").GetValue())#Do not know how this is calculated
+                                    hist.hzc_mass.Fill(zh.M())
+                                    hist.hzc_pt.Fill(zh.Pt())
+                                    hist.hzMET_ctrl_mt.Fill(zMET_mt)
+                                    hist.hcMET_mt.Fill(hMET_mt)
+                                    hist.h_ctrl_mt2200g.Fill(mt2200)
+                                    hist.h_ctrl_mt2SD200g.Fill(mt2SD200)
+                                    hist.h_ctrl_mt201g.Fill(mt201)
+                                    hist.h_ctrl_mt2SD01g.Fill(mt2SD01)
+                                    hist.h_ctrl_mr1.Fill(mr1)
+                                    hist.h_ctrl_mr2.Fill(mr2)
+                                    hist.h_ctrl_mrt.Fill(mrt)
+                                    hist.h_ctrl_r1var.Fill(r1)
+                                    hist.h_ctrl_r2var.Fill(r2)
+                                    hist.h_ctrl_2timemr1.Fill(twicemr1)
+                                    hist.hjigzp_ctrl_mass.Fill(mZp)
+                                    hist.hjignd_ctrl_mass.Fill(mND)
+                                    hist.hjigndbar_ctrl_mass.Fill(mNDbar)
                                 
     #Fill event number hists
     if skimmed_events > 1:
         events_process = skimmed_events
     hist.hnevents.SetBinContent(1,events_process)
-    hist.hnevents_pMET.SetBinContent(1,events_passing)
-    hist.hnevents_psf.SetBinContent(1,events_gfj)
+    hist.hnevents_passing.SetBinContent(1,events_passing)#has fat jet in window
+    hist.hnevents_pMET.SetBinContent(1,events_pMET)
+    hist.hnevents_psf.SetBinContent(1,events_gfj)#has a fat jet, might not be in mass window
     hist.hnevents_pZ.SetBinContent(1,events_goodZ)
     hist.hnfatpass.SetBinContent(1,accepted_fj)
     
