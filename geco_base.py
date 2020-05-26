@@ -147,5 +147,18 @@ def stackBkg(bkg_info,hist_to_stack,hsbkg,legend,stack_max,stack_min):
             if b == len(bkg["binlist"])-1:                                                              
                 legend.AddEntry(hbkg,bkg["name"],"f")
 
+def getSoftDropCorrection(sd_corrGEN,sd_corrRECO_cen,sd_corrRECO_for,puppipt,puppieta):
+    genCorr = 1.0
+    recoCorr = 1.0
+    totalWeight = 1.0
 
+    genCorr = sd_corrGEN.Eval(puppipt)
+    if abs(puppipt) <= 1.3:
+        recoCorr = sd_corrRECO_cen.Eval(puppipt)
+    else:
+        recoCorr = sd_corrRECO_for.Eval(puppipt)
+
+    totalWeight = genCorr*recoCorr
+
+    return totalWeight
     

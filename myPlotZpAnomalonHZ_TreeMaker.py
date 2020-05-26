@@ -112,6 +112,11 @@ if __name__=='__main__':
     notclose_ghgZ    = 0
     ishclose_ghgZ    = 0
 
+    sdFile = TFile.Open("weights/puppiCorr_2017.root","READ")
+    sd_corrGEN = sdFile.Get("puppiJECcorr_gen")
+    sd_corrRECO_cen = sdFile.Get("puppiJECcorr_reco_0eta1v3")
+    sd_corrRECO_for = sdFile.Get("puppiJECcorr_reco_1v3eta2v5")
+
     #Loop over all Events in TChain
     for i,event in enumerate(ch):
         events_process = i
@@ -193,6 +198,7 @@ if __name__=='__main__':
             dimulist    = list(itertools.combinations(mulist,2))
             gooddimuons = []
             for mumu in dimulist:
+                mumuv = []
                 if mumu[0]["q"] != mumu[1]["q"]:
                     mumuv = map(only4Vector,mumu)
                     if max(mumuv, key = lambda mu : mu.Pt()).Pt() > 60:
@@ -214,7 +220,6 @@ if __name__=='__main__':
                     events_goodZ += 1
                     hist.hmu_zcand_pt.Fill(mu1.Pt())
                     hist.hmu_zcand_pt.Fill(mu2.Pt())
-                    
                     #Looks at FullSim level Fat Jets
                     fnparts       = len(ch.JetsAK8)
                     freclusnparts = len(ch.JetsAK8Clean)
@@ -288,15 +293,19 @@ if __name__=='__main__':
                         
                         for fat in range(int(freclusnparts)):
                             fdict             = {}
-                            tf                = ch.JetsAK8Clean[fat]
+                            tf                = ch.JetsAK8Clean[fat]#saves a four vector, need to see how this four vector is built
                             fat_SD            = ch.JetsAK8Clean_softDropMass[fat]
                             fat_id            = ch.JetsAK8Clean_ID[fat]
                             #fat_DoubleB       = ch.JetsAK8Clean_doubleBDiscriminator[fat]#bDiscriminatorCSV
-                            fat_DoubleB       = ch.JetsAK8Clean_deepDoubleBDiscriminatorH[fat]
+                            fat_DoubleB       = ch.JetsAK8Clean_zhDiscriminatorDeepDecorrel[fat]#DeepAK8
+                            #fat_DoubleB       = ch.JetsAK8Clean_hDiscriminatorDeep[fat]#DeepAK8
+                            #fat_DoubleB       = ch.JetsAK8Clean_deepDoubleBDiscriminatorH[fat]
+                            fat_SDMassCorr    = gb.getSoftDropCorrection(sd_corrGEN,sd_corrRECO_cen,sd_corrRECO_for,tf.Pt(),tf.Eta())
                             fdict["DoubleB"]  = fat_DoubleB
                             fdict["fvec"]     = tf
                             fdict["softdrop"] = fat_SD
-                            if tf.Pt() > 250 and abs(tf.Eta()) < 2.4 and fat_id and fat_SD > 50 and fat_DoubleB >= doubleBWP:
+                            fdict["corrSD"]   = fat_SD*fat_SDMassCorr
+                            if tf.Pt() > 250 and abs(tf.Eta()) < 2.4 and fat_id and fdict["corrSD"] > 10 and fat_DoubleB >= doubleBWP:
                                 accepted_recfj += 1
                                 #frecluslist.append(fdict)
                                 #if fat_SD > 105 and fat_SD < 145:
@@ -311,6 +320,7 @@ if __name__=='__main__':
                                 hist.hfjet_pt.Fill(tf.Pt())
                                 hist.hfjet_mass.Fill(tf.M())
                                 hist.hfjet_SD.Fill(fat_SD)
+                                hist.hfjet_corrSD.Fill(fdict["corrSD"])
 
                             #This compares reclustered to unreclusted
                             #if funcluslist != []:
@@ -324,7 +334,8 @@ if __name__=='__main__':
                         else:
                             accepted_fj += len(flist)            
                             events_gfj +=1
-                            sfdict = min(flist, key = lambda fat : abs(125.0 - fat["softdrop"]))
+                            #sfdict = min(flist, key = lambda fat : abs(125.0 - fat["softdrop"]))
+                            sfdict = min(flist, key = lambda fat : abs(125.0 - fat["corrSD"]))
                             lfdict = max(flist, key = lambda fat : fat["fvec"].Pt())
                             sfat   = sfdict["fvec"]
                             lfat   = lfdict["fvec"]
@@ -421,8 +432,8 @@ if __name__=='__main__':
                                 mND = jigsawframes['ND'].GetMass()
                                 mNDbar = jigsawframes['NDbar'].GetMass()
 
-                                #if sfdict["softdrop"] > 110 and sfdict["softdrop"] < 140:
-                                if hMET_mt >= 400:
+                                if sfdict["corrSD"] > 70 and sfdict["corrSD"] < 150:
+                                #if hMET_mt >= 400:
                                     events_passing += 1
 
                                     #Make good estimate plots
@@ -430,8 +441,8 @@ if __name__=='__main__':
                                         hist.hjignddiv.Fill(mND/gennd)
                                         hist.hjigzpdiv.Fill(mZp/gzp)
                                         hist.h2razdiv.Fill(twicemr1/gzp)
-                                        hmt2200div.Fill(mt2200/gennd)
-                                        hmt21div.Fill(mt201/gennd)
+                                        hist.hmt2200div.Fill(mt2200/gennd)
+                                        hist.hmt21div.Fill(mt201/gennd)
                                         hist.hzmtdiv.Fill(zMET_mt/gennd)
                                 
                                     #Filling 1D histograms that cover selection based quantities 
@@ -451,7 +462,10 @@ if __name__=='__main__':
                                     hist.hsfjet_mass.Fill(sfat.M())
                                     hist.hlfjet_mass.Fill(lfat.M())
                                     hist.hsfjet_SD.Fill(sfdict["softdrop"])
+                                    hist.hsfjet_corrSD.Fill(sfdict["corrSD"])
                                     hist.hlfjet_SD.Fill(lfdict["softdrop"])
+                                    hist.hSDMassvpT.Fill(sfat.Pt(),sfdict["softdrop"])
+                                    hist.hcorrSDMassvpT.Fill(sfat.Pt(),sfdict["corrSD"])
                                     #hist.hghlf_dphi.Fill(dphi_ghlf)
                                     #hist.hghsf_dphi.Fill(dphi_ghsf)
                                     hist.hzreco_pt.Fill(dimuon.Pt())
@@ -514,6 +528,7 @@ if __name__=='__main__':
                                     hist.hsfjet_ctrl_mass.Fill(sfat.M())
                                     hist.hlfjet_ctrl_mass.Fill(lfat.M())
                                     hist.hsfjet_ctrl_SD.Fill(sfdict["softdrop"])
+                                    hist.hsfjet_ctrl_corrSD.Fill(sfdict["corrSD"])
                                     hist.hlfjet_ctrl_SD.Fill(lfdict["softdrop"])
                                     #hist.hghlf_dphi.Fill(dphi_ghlf)
                                     #hist.hghsf_dphi.Fill(dphi_ghsf)
@@ -674,6 +689,8 @@ if __name__=='__main__':
     #This should save the histograms
     output.Write()
     output.Close()
+
+    sdFile.Close()
 
     print "Wrote and saved generated histograms in ",outname
     #print "press enter to continue"
